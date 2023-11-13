@@ -1,9 +1,11 @@
 import { createMocks } from 'node-mocks-http';
-import { POST as handler } from '@/app/api/login/route';
+import { POST as handler } from '@/app/api/signup/route';
 import { LoginTicket } from 'google-auth-library';
 import { prismaMock } from '@/services/mocks/prismaMock';
 import { oauthMock } from '@/services/mocks/oauthMock';
 import { NextApiRequest, NextApiResponse } from 'next';
+import { GetTokenResponse } from 'google-auth-library/build/src/auth/oauth2client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 interface APiResponse extends NextApiResponse {
 	__getJSONData: () => string;
@@ -26,19 +28,27 @@ const loginTicket = {
 	})
 } as LoginTicket;
 
-describe('POST /login', () => {
-	it('should return the login data', async () => {
-		prismaMock.user.findUnique.mockResolvedValue({
+const tokenResponse: GetTokenResponse = {
+	tokens: { id_token: null },
+	res: null
+};
+
+describe('POST /signup', () => {
+	it('should return a user data', async () => {
+		prismaMock.user.create.mockResolvedValue({
 			...user,
 			createdAt: new Date(),
 			updatedAt: new Date()
 		});
 
+		oauthMock.getToken.mockResolvedValue(tokenResponse);
 		oauthMock.verifyIdToken.mockResolvedValue(loginTicket);
 
 		const { req, res } = createMocks<NextApiRequest, APiResponse>({
 			method: 'POST',
-			body: { googleToken: 'token', googleId: '1' }
+			body: {
+				googleAccessToken: 'access_token'
+			}
 		});
 
 		await handler(req, res);
@@ -59,51 +69,74 @@ describe('POST /login', () => {
 
 		expect(res.statusCode).toBe(422);
 		expect(res._getJSONData()).toEqual({
-			error: [
-				'googleId is a required field',
-				'googleToken is a required field'
-			]
+			error: ['googleAccessToken is a required field']
 		});
 	});
 
-	it('should fail if the user does not exist', async () => {
-		prismaMock.user.findUnique.mockResolvedValue(null);
+	it('should fail if the user already exists', async () => {
+		prismaMock.user.create.mockRejectedValue(
+			new PrismaClientKnownRequestError('', {
+				code: 'P2002',
+				clientVersion: 'mock'
+			})
+		);
+
+		oauthMock.getToken.mockResolvedValue(tokenResponse);
+		oauthMock.verifyIdToken.mockResolvedValue(loginTicket);
 
 		const { req, res } = createMocks<NextApiRequest, APiResponse>({
 			method: 'POST',
 			body: {
-				googleToken: 'token',
-				googleId: '1'
+				googleAccessToken: 'access_token'
+			}
+		});
+
+		await handler(req, res);
+
+		expect(res.statusCode).toBe(409);
+		expect(res._getJSONData()).toEqual({
+			error: 'account already exist'
+		});
+	});
+
+	it('should fail if a unexpected error occurs', async () => {
+		prismaMock.user.create.mockRejectedValue(new Error('unexpected error'));
+
+		oauthMock.getToken.mockResolvedValue(tokenResponse);
+		oauthMock.verifyIdToken.mockResolvedValue(loginTicket);
+
+		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+			method: 'POST',
+			body: {
+				googleAccessToken: 'access_token'
+			}
+		});
+
+		await handler(req, res);
+
+		expect(res.statusCode).toBe(500);
+		expect(res._getJSONData()).toBeNull();
+	});
+
+	it('should fail if the google token is rejected', async () => {
+		prismaMock.user.create.mockResolvedValue({
+			...user,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+
+		oauthMock.getToken.mockRejectedValue(new Error());
+
+		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+			method: 'POST',
+			body: {
+				googleAccessToken: 'access_token'
 			}
 		});
 
 		await handler(req, res);
 
 		expect(res.statusCode).toBe(301);
-		expect(res._getJSONData()).toEqual({
-			error: 'user not found'
-		});
-	});
-
-	it('should fail if the google token is rejected', async () => {
-		prismaMock.user.findUnique.mockResolvedValue({
-			...user,
-			createdAt: new Date(),
-			updatedAt: new Date()
-		});
-
-		oauthMock.verifyIdToken.mockRejectedValue(new Error());
-
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
-			method: 'POST',
-			body: { googleToken: 'token', googleId: '1' }
-		});
-
-		await handler(req, res);
-
-		expect(res.statusCode).toBe(301);
-		expect(res._getJSONData()).toEqual({
-			error: 'invalid token'
-		});
+		expect(res._getJSONData()).toEqual({ error: 'invalid token' });
 	});
 });
