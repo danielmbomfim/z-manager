@@ -1,13 +1,9 @@
-import { createMocks } from 'node-mocks-http';
 import { POST as handler } from '@/app/api/login/route';
 import { LoginTicket } from 'google-auth-library';
 import { prismaMock } from '@/services/mocks/prismaMock';
 import { oauthMock } from '@/services/mocks/oauthMock';
-import { NextApiRequest, NextApiResponse } from 'next';
-
-interface APiResponse extends NextApiResponse {
-	__getJSONData: () => string;
-}
+import { LoginRequest } from '@/types';
+import { createRequestMock } from '@/services/mocks/httpMock';
 
 const user = {
 	id: 1,
@@ -36,29 +32,29 @@ describe('POST /login', () => {
 
 		oauthMock.verifyIdToken.mockResolvedValue(loginTicket);
 
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+		const req: LoginRequest = createRequestMock({
 			method: 'POST',
 			body: { googleToken: 'token', googleId: '1' }
 		});
 
-		await handler(req, res);
+		const res = await handler(req);
 
-		expect(res.statusCode).toBe(200);
-		expect(res._getJSONData()).toMatchObject({
+		expect(res.status).toBe(200);
+		expect(await res.json()).toMatchObject({
 			token: expect.any(String),
 			user
 		});
 	});
 
 	it('should fail if the data is not passed', async () => {
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+		const req: LoginRequest = createRequestMock({
 			method: 'POST'
 		});
 
-		await handler(req, res);
+		const res = await handler(req);
 
-		expect(res.statusCode).toBe(422);
-		expect(res._getJSONData()).toEqual({
+		expect(res.status).toBe(422);
+		expect(await res.json()).toEqual({
 			error: [
 				'googleId is a required field',
 				'googleToken is a required field'
@@ -69,7 +65,7 @@ describe('POST /login', () => {
 	it('should fail if the user does not exist', async () => {
 		prismaMock.user.findUnique.mockResolvedValue(null);
 
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+		const req: LoginRequest = createRequestMock({
 			method: 'POST',
 			body: {
 				googleToken: 'token',
@@ -77,10 +73,10 @@ describe('POST /login', () => {
 			}
 		});
 
-		await handler(req, res);
+		const res = await handler(req);
 
-		expect(res.statusCode).toBe(301);
-		expect(res._getJSONData()).toEqual({
+		expect(res.status).toBe(301);
+		expect(await res.json()).toEqual({
 			error: 'user not found'
 		});
 	});
@@ -94,15 +90,15 @@ describe('POST /login', () => {
 
 		oauthMock.verifyIdToken.mockRejectedValue(new Error());
 
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+		const req: LoginRequest = createRequestMock({
 			method: 'POST',
 			body: { googleToken: 'token', googleId: '1' }
 		});
 
-		await handler(req, res);
+		const res = await handler(req);
 
-		expect(res.statusCode).toBe(301);
-		expect(res._getJSONData()).toEqual({
+		expect(res.status).toBe(301);
+		expect(await res.json()).toEqual({
 			error: 'invalid token'
 		});
 	});

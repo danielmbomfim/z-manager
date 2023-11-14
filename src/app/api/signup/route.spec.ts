@@ -1,15 +1,11 @@
-import { createMocks } from 'node-mocks-http';
 import { POST as handler } from '@/app/api/signup/route';
 import { LoginTicket } from 'google-auth-library';
 import { prismaMock } from '@/services/mocks/prismaMock';
 import { oauthMock } from '@/services/mocks/oauthMock';
-import { NextApiRequest, NextApiResponse } from 'next';
 import { GetTokenResponse } from 'google-auth-library/build/src/auth/oauth2client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-
-interface APiResponse extends NextApiResponse {
-	__getJSONData: () => string;
-}
+import { SignupRequest } from '@/types';
+import { createRequestMock } from '@/services/mocks/httpMock';
 
 const user = {
 	id: 1,
@@ -44,31 +40,31 @@ describe('POST /signup', () => {
 		oauthMock.getToken.mockResolvedValue(tokenResponse);
 		oauthMock.verifyIdToken.mockResolvedValue(loginTicket);
 
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+		const req: SignupRequest = createRequestMock({
 			method: 'POST',
 			body: {
 				googleAccessToken: 'access_token'
 			}
 		});
 
-		await handler(req, res);
+		const res = await handler(req);
 
-		expect(res.statusCode).toBe(200);
-		expect(res._getJSONData()).toMatchObject({
+		expect(res.status).toBe(200);
+		expect(await res.json()).toMatchObject({
 			token: expect.any(String),
 			user
 		});
 	});
 
 	it('should fail if the data is not passed', async () => {
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+		const req: SignupRequest = createRequestMock({
 			method: 'POST'
 		});
 
-		await handler(req, res);
+		const res = await handler(req);
 
-		expect(res.statusCode).toBe(422);
-		expect(res._getJSONData()).toEqual({
+		expect(res.status).toBe(422);
+		expect(await res.json()).toEqual({
 			error: ['googleAccessToken is a required field']
 		});
 	});
@@ -84,17 +80,17 @@ describe('POST /signup', () => {
 		oauthMock.getToken.mockResolvedValue(tokenResponse);
 		oauthMock.verifyIdToken.mockResolvedValue(loginTicket);
 
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+		const req: SignupRequest = createRequestMock({
 			method: 'POST',
 			body: {
 				googleAccessToken: 'access_token'
 			}
 		});
 
-		await handler(req, res);
+		const res = await handler(req);
 
-		expect(res.statusCode).toBe(409);
-		expect(res._getJSONData()).toEqual({
+		expect(res.status).toBe(409);
+		expect(await res.json()).toEqual({
 			error: 'account already exist'
 		});
 	});
@@ -105,17 +101,17 @@ describe('POST /signup', () => {
 		oauthMock.getToken.mockResolvedValue(tokenResponse);
 		oauthMock.verifyIdToken.mockResolvedValue(loginTicket);
 
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+		const req: SignupRequest = createRequestMock({
 			method: 'POST',
 			body: {
 				googleAccessToken: 'access_token'
 			}
 		});
 
-		await handler(req, res);
+		const res = await handler(req);
 
-		expect(res.statusCode).toBe(500);
-		expect(res._getJSONData()).toBeNull();
+		expect(res.status).toBe(500);
+		expect(await res.json()).toBeNull();
 	});
 
 	it('should fail if the google token is rejected', async () => {
@@ -127,16 +123,16 @@ describe('POST /signup', () => {
 
 		oauthMock.getToken.mockRejectedValue(new Error());
 
-		const { req, res } = createMocks<NextApiRequest, APiResponse>({
+		const req: SignupRequest = createRequestMock({
 			method: 'POST',
 			body: {
 				googleAccessToken: 'access_token'
 			}
 		});
 
-		await handler(req, res);
+		const res = await handler(req);
 
-		expect(res.statusCode).toBe(301);
-		expect(res._getJSONData()).toEqual({ error: 'invalid token' });
+		expect(res.status).toBe(301);
+		expect(await res.json()).toEqual({ error: 'invalid token' });
 	});
 });

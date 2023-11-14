@@ -4,28 +4,27 @@ import prisma from '@/services/prisma';
 import oauth from '@/services/oauth';
 import { SignupRequest } from '@/types';
 import { TokenPayload } from 'google-auth-library';
-import { NextApiResponse } from 'next';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 const signupSchema = yup.object().shape({
 	googleAccessToken: yup.string().required()
 });
 
-export async function POST(req: SignupRequest, res: NextApiResponse) {
+export async function POST(req: SignupRequest) {
+	const body = await req.json();
+
 	try {
-		await signupSchema.validate(req.body, { abortEarly: false });
+		await signupSchema.validate(body, { abortEarly: false });
 	} catch (error) {
 		if (error instanceof yup.ValidationError) {
-			return res.status(422).json({ error: error.errors });
+			return Response.json({ error: error.errors }, { status: 422 });
 		}
 	}
 
-	const { googleAccessToken } = req.body;
-
-	const userData = await getGoogleToken(googleAccessToken);
+	const userData = await getGoogleToken(body.googleAccessToken);
 
 	if (!userData) {
-		return res.status(301).json({ error: 'invalid token' });
+		return Response.json({ error: 'invalid token' }, { status: 301 });
 	}
 
 	try {
@@ -42,17 +41,20 @@ export async function POST(req: SignupRequest, res: NextApiResponse) {
 		const token = jwt.sign({ id: user!.id }, process.env.SECRET as string, {
 			expiresIn: '1h'
 		});
-		return res.json({ token, user });
+		return Response.json({ token, user });
 	} catch (error) {
 		if (error instanceof PrismaClientKnownRequestError) {
 			if (error.code == 'P2002') {
-				return res.status(409).json({
-					error: 'account already exist'
-				});
+				return Response.json(
+					{
+						error: 'account already exist'
+					},
+					{ status: 409 }
+				);
 			}
 		}
 
-		return res.status(500).json(null);
+		return Response.json(null, { status: 500 });
 	}
 }
 
