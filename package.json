@@ -12,6 +12,9 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^6.4.2",
+    "@fortawesome/free-solid-svg-icons": "^6.4.2",
+    "@fortawesome/react-fontawesome": "^0.2.0",
     "@prisma/client": "^5.5.2",
     "@react-oauth/google": "^0.11.1",
     "axios": "^1.6.1",

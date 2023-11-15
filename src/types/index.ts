@@ -39,3 +39,10 @@ export interface AuthContextData {
 	login: (data: CredentialResponse) => Promise<void>;
 	register: (data: CodeResponse) => Promise<void>;
 }
+
+export interface RouteGuardParams {
+	authenticated: boolean;
+	loading: boolean;
+	authenticationRoute?: string;
+	homepageRoute?: string;
+}

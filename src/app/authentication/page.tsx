@@ -14,12 +14,20 @@ import {
 	AuthenticationButton,
 	AuthenticationText
 } from './styles';
+import useRouteGuard from '@/utils/useRouteGuard';
+import LoadComponent from '@/components/LoadComponent';
 
 export default function AuthPage(): React.ReactElement {
 	const auth = useAuth();
 	const googleLogin = useGoogleLogin({
 		onSuccess: handleRegister,
 		flow: 'auth-code'
+	});
+
+	const finished = useRouteGuard({
+		loading: auth.loading,
+		authenticated: auth.signed,
+		homepageRoute: '/dashboard'
 	});
 
 	function handleLogin(data: CredentialResponse) {
@@ -38,7 +46,9 @@ export default function AuthPage(): React.ReactElement {
 		});
 	}
 
-	return (
+	return !finished ? (
+		<LoadComponent />
+	) : (
 		<AuthenticationArea>
 			<Logo src="logo.png" />
 			<AuthenticationText>

@@ -4,7 +4,8 @@ import {
 	ReactNode,
 	useContext,
 	useState,
-	useEffect
+	useEffect,
+	useMemo
 } from 'react';
 import { CodeResponse, CredentialResponse } from '@react-oauth/google';
 import jwt from 'jsonwebtoken';
@@ -12,6 +13,7 @@ import api from '@/services/api';
 import { GoogleProfileData, UserData } from '@/types';
 
 interface AuthContextData {
+	loading: boolean;
 	signed: boolean;
 	user: UserData | null;
 	login: (data: CredentialResponse) => Promise<void>;
@@ -23,19 +25,19 @@ const authContext = createContext<AuthContextData>({} as AuthContextData);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const [user, setUser] = useState<UserData | null>(null);
+	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
 		window.addEventListener('storage', checkToken);
 
-		async function loadData() {
-			const data = localStorage.getItem('@authenticationData');
+		const data = localStorage.getItem('@authenticationData');
 
-			if (data) {
-				await setUser(JSON.parse(data).user);
-			}
+		if (data) {
+			setUser(JSON.parse(data).user);
 		}
 
-		loadData();
+		setLoading(false);
+
 		return () => window.removeEventListener('storage', checkToken);
 	}, []);
 
@@ -79,10 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	}
 
+	const contextValue: AuthContextData = useMemo(() => {
+		return { loading, signed: !!user, user, register, login, logOut };
+	}, [loading, user]);
+
 	return (
-		<authContext.Provider
-			value={{ signed: !!user, user, register, login, logOut }}
-		>
+		<authContext.Provider value={contextValue}>
 			{children}
 		</authContext.Provider>
 	);
