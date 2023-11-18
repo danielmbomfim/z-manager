@@ -1,5 +1,12 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
-module.exports = {
+// Jest.config.js
+const nextJest = require('next/jest');
+
+const createJestConfig = nextJest({
+	dir: './'
+});
+
+module.exports = createJestConfig({
 	preset: 'ts-jest',
 	testEnvironment: 'node',
 	setupFiles: ['<rootDir>/.jest/setEnvVars.js'],
@@ -11,4 +18,4 @@ module.exports = {
 		'@/services/(.*)$': '<rootDir>/src/services/$1',
 		'@/app/(.*)$': '<rootDir>/src/app/$1'
 	}
-};
+});
