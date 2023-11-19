@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { ToastContainer } from 'react-toastify';
+import Header from '@/components/Header';
 import ContextProviders from '@/contexts';
 import StyledComponentsRegistry from '@/lib/registry';
 import 'react-toastify/dist/ReactToastify.css';
@@ -23,6 +24,7 @@ export default function RootLayout({
 				<StyledComponentsRegistry>
 					<ContextProviders>
 						<ToastContainer theme="dark" />
+						<Header />
 						{children}
 					</ContextProviders>
 				</StyledComponentsRegistry>
